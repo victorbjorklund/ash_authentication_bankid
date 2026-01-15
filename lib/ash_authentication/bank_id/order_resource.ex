@@ -41,6 +41,7 @@ defmodule AshAuthentication.BankID.OrderResource do
   - `hint_code` - String (BankID hint code, nullable)
   - `completion_data` - Map (BankID completion data, nullable)
   - `consumed` - Boolean (prevents reuse)
+  - `tenant` - String (tenant identifier for multi-tenant apps, nullable)
   - `inserted_at` - DateTime
   - `updated_at` - DateTime
 
@@ -100,6 +101,7 @@ defmodule AshAuthentication.BankID.OrderResource.Transformer do
     |> Transformer.add_entity([:attributes], build_hint_code())
     |> Transformer.add_entity([:attributes], build_completion_data())
     |> Transformer.add_entity([:attributes], build_consumed())
+    |> Transformer.add_entity([:attributes], build_tenant())
     |> Transformer.add_entity([:attributes], build_inserted_at())
     |> Transformer.add_entity([:attributes], build_updated_at())
   end
@@ -234,6 +236,16 @@ defmodule AshAuthentication.BankID.OrderResource.Transformer do
     )
   end
 
+  defp build_tenant do
+    Transformer.build_entity!(Ash.Resource.Dsl, [:attributes], :attribute,
+      name: :tenant,
+      type: :string,
+      allow_nil?: true,
+      public?: false,
+      description: "Tenant identifier for multi-tenant applications"
+    )
+  end
+
   defp build_inserted_at do
     Transformer.build_entity!(Ash.Resource.Dsl, [:attributes], :attribute,
       name: :inserted_at,
@@ -281,7 +293,8 @@ defmodule AshAuthentication.BankID.OrderResource.Transformer do
         :start_t,
         :session_id,
         :ip_address,
-        :status
+        :status,
+        :tenant
       ]
     )
   end

@@ -51,6 +51,15 @@ defmodule AshAuthentication.BankID.Plug do
 
     case BankIDClient.authenticate(user_ip, http_client: http_client) do
       {:ok, auth_data} ->
+        # Get tenant from conn to store on order (for multi-tenant apps)
+        tenant = get_tenant(conn)
+
+        # DEBUG: Log tenant capture
+        IO.puts("")
+        IO.inspect(tenant, label: "BankID INITIATE - tenant from conn")
+        IO.inspect(conn.host, label: "BankID INITIATE - conn.host")
+        IO.puts("")
+
         # Create order in the order resource
         order_params = %{
           order_ref: auth_data.order_ref,
@@ -60,7 +69,8 @@ defmodule AshAuthentication.BankID.Plug do
           start_t: auth_data.start_t,
           session_id: session_id,
           ip_address: user_ip,
-          status: "pending"
+          status: "pending",
+          tenant: tenant
         }
 
         case create_order(strategy, order_params, opts(conn)) do
@@ -175,6 +185,8 @@ defmodule AshAuthentication.BankID.Plug do
            {:got_order_ref, old_order_ref},
          {:ok, old_order} <- get_order_by_ref(strategy, order_ref, session_id, opts(conn)),
          user_ip <- old_order.ip_address,
+         # Preserve tenant from old order (for multi-tenant apps)
+         tenant <- old_order.tenant,
          {:ok, auth_data} <- BankIDClient.authenticate(user_ip, http_client: http_client),
          {:ok, _new_order} <-
            create_order(
@@ -187,7 +199,8 @@ defmodule AshAuthentication.BankID.Plug do
                start_t: auth_data.start_t,
                session_id: session_id,
                ip_address: user_ip,
-               status: "pending"
+               status: "pending",
+               tenant: tenant
              },
              opts(conn)
            ) do
@@ -236,12 +249,54 @@ defmodule AshAuthentication.BankID.Plug do
   def sign_in(conn, strategy) do
     session_key = session_key(strategy)
     session_id = Conn.get_session(conn, session_key)
+    order_ref = conn.params["order_ref"] || conn.params[:order_ref]
 
-    # Add session_id to params for security validation in SignInChange
-    params = Map.put(conn.params, "session_id", session_id)
+    # Look up the order first to get the stored tenant (for multi-tenant apps)
+    # This ensures the sign_in uses the same tenant as when the order was created
+    case get_order_by_ref(strategy, order_ref, session_id, opts(conn)) do
+      {:ok, order} ->
+        # DEBUG: Log order tenant
+        IO.puts("")
+        IO.inspect(order.tenant, label: "BankID SIGN_IN - order.tenant")
+        IO.inspect(get_tenant(conn), label: "BankID SIGN_IN - get_tenant(conn)")
 
-    result = Strategy.action(strategy, :sign_in, params, opts(conn))
-    store_authentication_result(conn, result)
+        # Add session_id to params for security validation in SignInChange
+        params = Map.put(conn.params, "session_id", session_id)
+
+        # Build options with the tenant from the order (if present)
+        # This overrides any tenant on the conn to ensure consistency
+        sign_in_opts = build_sign_in_opts(conn, order)
+
+        IO.inspect(sign_in_opts, label: "BankID SIGN_IN - sign_in_opts")
+        IO.puts("")
+
+        result = Strategy.action(strategy, :sign_in, params, sign_in_opts)
+        store_authentication_result(conn, result)
+
+      {:error, :not_found} ->
+        store_authentication_result(conn, {:error, "Order not found"})
+
+      {:error, reason} ->
+        Logger.error("Failed to look up order for sign_in: #{inspect(reason)}")
+        store_authentication_result(conn, {:error, "Failed to complete sign_in"})
+    end
+  end
+
+  # Build options for sign_in action, using tenant from order if available
+  defp build_sign_in_opts(conn, order) do
+    base_opts = [
+      actor: get_actor(conn),
+      context: get_context(conn) || %{}
+    ]
+
+    # Use tenant from order if present, otherwise fall back to conn tenant
+    tenant = order.tenant || get_tenant(conn)
+
+    if tenant do
+      Keyword.put(base_opts, :tenant, tenant)
+    else
+      base_opts
+    end
   end
 
   # Private helpers
