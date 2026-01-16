@@ -1,3 +1,4 @@
+if Code.ensure_loaded?(Igniter.Mix.Task) do
 defmodule Mix.Tasks.AshAuthenticationBankid.Install do
   @moduledoc """
   Installs BankID authentication into a Phoenix application using Ash Authentication.
@@ -1086,4 +1087,6 @@ defmodule Mix.Tasks.AshAuthenticationBankid.Install do
         false
     end
   end
+end
+
 end
