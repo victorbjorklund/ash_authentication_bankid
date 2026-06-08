@@ -1,7 +1,7 @@
 defmodule AshAuthenticationBankid.MixProject do
   use Mix.Project
 
-  @version "0.1.1"
+  @version "0.1.2"
   @description "Swedish BankID authentication strategy for Ash Authentication"
   @source_url "https://github.com/Victorbjorklund/ash_authentication_bankid"
 
@@ -53,13 +53,13 @@ defmodule AshAuthenticationBankid.MixProject do
 
   defp deps do
     [
-      {:ash, "~> 3.0"},
+      {:ash, "~> 3.27"},
       {:ash_authentication, "~> 4.0"},
       {:bankid, "~> 0.0.1"},
-      {:spark, "~> 2.0"},
+      {:spark, "~> 2.7"},
       {:plug, "~> 1.16"},
-      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
-      {:igniter, "~> 0.6 and >= 0.6.29", optional: true, only: [:dev, :test], runtime: false}
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
+      {:igniter, "~> 0.8 and >= 0.6.29", optional: true, only: [:dev, :test], runtime: false}
     ]
   end
 
