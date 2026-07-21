@@ -55,7 +55,7 @@ defmodule AshAuthenticationBankid.MixProject do
     [
       {:ash, "~> 3.27"},
       {:ash_authentication, "~> 4.0"},
-      {:bankid, "~> 0.0.1"},
+      {:bankid, "~> 0.0.3"},
       {:spark, "~> 2.7"},
       {:plug, "~> 1.16"},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false},
